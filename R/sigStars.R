@@ -1,22 +1,5 @@
-dropLeadingZero <- function(x) {
-  xStrList <- strsplit(as.character(x), "")
-  xStrList <-
-    sapply(xStrList, 
-           function(xStr) {
-             if (xStr[1]=="0" & xStr[2]==".") {
-               paste0(xStr[-1], collapse="")
-             } else if (xStr[1] %in% c("-", "\u2212", "+") & xStr[2]=="0" & xStr[3]==".") {
-               paste0(xStr[-2], collapse="")
-             } else {
-               paste0(xStr, collapse="")
-             }
-           })
-  
-  xStrList
-}
-
 pValLessThan <- function(pvals, digits=2, leadingEq=TRUE) {
-  require(dplyr)
+  library(dplyr)
   eq <- if (leadingEq) "=\u00A0" else character(0L)
   case_when(pvals < .0001 ~ "<\u00A0.0001",
             pvals < .001 ~ "<\u00A0.001",
@@ -28,10 +11,11 @@ pValLessThan <- function(pvals, digits=2, leadingEq=TRUE) {
 }
 
 sigStars <- function(model, 
-                     digits=list(estimate=5, SE=5, tz=3, df=0, p=2),
-                     pVal=c("lessthan", "stars", "round", "asis")[1]) {
-  require(dplyr)
-  require(stringr)
+                     digits=c(estimate=5, SE=5, tz=3, df=0, p=2),
+                     pVal=c("lessthan", "stars", "round", "asis")[1],
+		     italics=TRUE) {
+  library(dplyr)
+  library(stringr)
   
   ##Get coefficient matrix
   if (any(class(model) %in% c("summary.merMod", "summary.lmerModLmerTest"))) {
@@ -61,7 +45,7 @@ sigStars <- function(model,
     pFunc <- function(x) pValLessThan(x, digits=digits$p, leadingEq=FALSE)
   }
   if (pVal=="stars") {
-    pFunc <- function(x) str_c(x %>% format.pval(digits=digits$p) %>% dropLeadingZero(),
+    pFunc <- function(x) paste0(x %>% format.pval(digits=digits$p) %>% dropLeadingZero(),
                                cut(x, 
                                    breaks=c(-0.001, 0.001, 0.01, 0.05, 0.1, 1), 
                                    labels=c("***", "**", "*", ".", "")))
@@ -76,20 +60,24 @@ sigStars <- function(model,
   ##Reformat coefficient matrix
   df <- 
     smry %>%
+		##Add term names
+		rownames_to_column("Term") %>%
     ##Round estimate, SE, t/z, and df
-    mutate_at(vars("Estimate"), ~ sprintf(str_c("%.", digits$estimate, "f"), .)) %>%
-    mutate_at(vars("Std. Error"), ~ sprintf(str_c("%.", digits$SE, "f"), .)) %>%
-    mutate_at(vars(matches("[tz] value")), ~ sprintf(str_c("%.", digits$tz, "f"), .)) %>%
-    mutate_at(vars(matches("df")), ~ sprintf(str_c("%.", digits$df, "f"), .)) %>%
-    ##Apply pFunc() to p-value
-    mutate_at(vars(matches("Pr\\(>\\|[tz]\\|\\)")), pFunc) %>% 
-    ##Italicize "t/z" and "p"
-    rename_at(vars(matches("[tz] value")), str_replace, "([tz])", "\\*\\1\\*") %>%
-    rename_at(vars(matches("Pr\\(>\\|[tz]\\|\\)")), ~ "*p*") %>% 
-    ##Replace hyphens with proper minus signs
-    mutate_all(str_replace, "-", "\u2212")
-  ##Add term names
-  rownames(df) <- rownames(smry)
+    mutate(across(Estimate, ~ sprintf(str_glue("%.{digits$estimate}f"), .x)),
+		       across(Std. Error, ~ sprintf(str_glue("%.{digits$SE}f"), .x)), 
+					 across(matches("[tz] value"), ~ sprintf(str_glue("%.{digits$tz}f"), .x)),
+					 across(matches("df"), ~ sprintf(str_glue("%.{digits$df}f"), .x)),
+					 ##Apply pFunc() to p-value
+					 across(matches("Pr\\(>\\|[tz]\\|\\)"), pFunc),
+					 ##Replace hyphens with proper minus signs
+					 across(everything(), ~ str_replace(.x, "-", "\u2212")))
+	
+	##Optionally italicize "t/z" and "p"
+	if (italicize) {
+	  df <- df %>%
+		  mutate(across(matches("[tz] value"), ~ str_replace(.x, "([tz])", "\\*\\1\\*"))) %>%					
+      rename_with(~ "*p*", matches("Pr\\(>\\|[tz]\\|\\)"))
+	}
   
   df
 }
