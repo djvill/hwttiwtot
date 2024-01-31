@@ -1,6 +1,6 @@
 # "Hey, where's that thing I wrote that one time?"
 
-https://github.com/djvill/hwttiwtot[^pronounce]
+https://github.com/djvill/hwttiwtot [^pronounce]
 
 [^pronounce]: Suggested pronunciation: \[hə̥-tɨ̞w-ə-tɑt\] (_h'-two-a-tot_)
 
