@@ -1,5 +1,10 @@
+dropLeadingZero <- function(x) {
+  gsub("^([-\u2212+]?)0\\.", "\\1\\.", x)
+}
+
 pValLessThan <- function(pvals, digits=2, leadingEq=TRUE) {
   library(dplyr)
+  ##N.B. \u00A0 is a nonbreaking space
   eq <- if (leadingEq) "=\u00A0" else character(0L)
   case_when(pvals < .0001 ~ "<\u00A0.0001",
             pvals < .001 ~ "<\u00A0.001",
@@ -7,15 +12,16 @@ pValLessThan <- function(pvals, digits=2, leadingEq=TRUE) {
             pvals < .01 ~ "<\u00A0.01",
             pvals < .05 ~ "<\u00A0.05",
             TRUE ~ paste0(eq, sprintf(paste0("%.", digits, "f"), pvals) %>%
-                            str_remove("^0+")))
+                            dropLeadingZero()))
 }
 
 sigStars <- function(model, 
                      digits=c(estimate=5, SE=5, tz=3, df=0, p=2),
-                     pVal=c("lessthan", "stars", "round", "asis")[1],
+                     pVal=c("lessthan", "stars", "round", "asis"),
                      italics=TRUE) {
   library(dplyr)
   library(stringr)
+  library(tibble)
   
   ##Get coefficient matrix
   if (any(class(model) %in% c("summary.merMod", "summary.lmerModLmerTest"))) {
@@ -27,10 +33,9 @@ sigStars <- function(model,
   }
   
   ##Flesh out digits, providing defaults for missing values
-  if (length(digits)==1 & is.integer(digits)) {
-    digits <- 
-      rep(digits, 5) %>% 
-      set_names(c("estimate", "SE", "tz", "df", "p"))
+  if (length(digits)==1) {
+    digits <- rep(digits, 5)
+    names(digits) <- c("estimate", "SE", "tz", "df", "p")
   }
   if (!(all(c("estimate", "SE", "tz", "df", "p") %in% names(digits)))) {
     if (!("estimate" %in% names(digits))) digits <- c(digits, estimate=5)
@@ -41,17 +46,18 @@ sigStars <- function(model,
   }
   
   ##Define pFunc() based on pVal
+  pVal <- match.arg(pVal)
   if (pVal=="lessthan") {
-    pFunc <- function(x) pValLessThan(x, digits=digits[['p']], leadingEq=FALSE)
+    pFunc <- function(x) pValLessThan(x, digits=digits['p'], leadingEq=FALSE)
   }
   if (pVal=="stars") {
-    pFunc <- function(x) paste0(x %>% format.pval(digits=digits[['p']]) %>% str_remove("^0+"),
+    pFunc <- function(x) paste0(x %>% format.pval(digits=digits['p']) %>% dropLeadingZero(),
                                 cut(x, 
                                     breaks=c(-0.001, 0.001, 0.01, 0.05, 0.1, 1), 
                                     labels=c("***", "**", "*", ".", "")))
   }
   if (pVal=="round") {
-    pFunc <- function(x) format.pval(x, digits=digits[['p']])
+    pFunc <- function(x) format.pval(x, digits=digits['p']) %>% dropLeadingZero()
   }
   if (pVal=="asis") {
     pFunc <- function(x) x
@@ -62,22 +68,24 @@ sigStars <- function(model,
     smry %>%
     ##Add term names
     rownames_to_column("Term") %>%
-    ##Round estimate, SE, t/z, and df
-    mutate(across(Estimate, ~ sprintf(str_glue("%.{digits[['estimate']]}f"), .x)),
-           across(matches("Std. Error"), ~ sprintf(str_glue("%.{digits[['SE']]}f"), .x)), 
-           across(matches("[tz] value"), ~ sprintf(str_glue("%.{digits[['tz']]}f"), .x)),
-           across(matches("df"), ~ sprintf(str_glue("%.{digits[['df']]}f"), .x)),
+    ##Format values
+    mutate(across(Estimate, ~ sprintf(str_glue("%.{digits['estimate']}f"), .x)),
+           across(`Std. Error`, ~ sprintf(str_glue("%.{digits['SE']}f"), .x)), 
+           across(matches("[tz] value"), ~ sprintf(str_glue("%.{digits['tz']}f"), .x)),
+           across(df, ~ sprintf(str_glue("%.{digits['df']}f"), .x)),
            ##Apply pFunc() to p-value
            across(matches("Pr\\(>\\|[tz]\\|\\)"), pFunc),
            ##Replace hyphens with proper minus signs
-           across(everything(), ~ str_replace(.x, "-", "\u2212")))
+           across(everything(), ~ str_replace(.x, "-", "\u2212"))) %>% 
+    ##Nicer column names for "t/z" and "p"
+    rename_with(~ str_replace(.x, "([tz]).+", "\\1"), matches("[tz] value")) %>% 
+    rename_with(~ "p", matches("Pr\\(>\\|[tz]\\|\\)"))
   
-  ##Optionally italicize "t/z" and "p"
-  # 	if (italicize) {
-  # 	  df <- df %>%
-  # 		  mutate(across(matches("[tz] value"), ~ str_replace(.x, "([tz])", "\\*\\1\\*"))) %>%					
-  #       rename_with(~ "*p*", matches("Pr\\(>\\|[tz]\\|\\)"))
-  # 	}
+  ##Optionally surround "t/z" and "p" with "_" to create Markdown italics
+  if (italics) {
+    df <- df %>%
+      rename_with(~ paste0("_", .x, "_"), matches("^[tzp]$"))
+  }
   
   df
 }
