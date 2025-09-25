@@ -1,15 +1,15 @@
 ####
 #### Praat script ParseValidateVersion.praat
 #### Dan Villarreal (d.vill@pitt.edu)
-#### Version date: 1 Apr 2024
+#### Version date: 25 Apr 2025
 ####
 #### Contains two procedures that are useful for other scripts to ensure Praat
 #### version meets minimum requirements (e.g., array functions introduced in 
 #### Praat 6.1):
 #### - parseVersion: Robustly parse Praat version string passed as argument
-####                 into the triple (major,minor,patch) triple.
-####                 If the version string is in the format "X.Y.Z", sets
-####                 patch to 0.
+####                 "major.minor.patch" into the triple (major,minor,patch).
+####                 If the version string is in the format "major.minor",
+####                 returns (major,minor,0).
 #### - validateVersion: Compare current Praat version to minimum version string
 ####                    passed as argument, returning error if current version
 ####                    is below minimum version
@@ -48,7 +48,8 @@ procedure validateVersion: .minVersion$
 	minPatch = parseVersion.patch
   
   ##Construct exit message
-  exitMsg$ = "This script requires Praat to be at least version " + .minVersion$ + " (you have version " + praatVersion$ + "). Please download a more recent version of Praat at https://www.fon.hum.uva.nl/praat/."
+  newlineIndent$ = newline$ + replace_regex$("Error: ", ".", " ", 0)
+  exitMsg$ = "This script requires Praat to be at least version " + .minVersion$ + newlineIndent$ + "You have version " + praatVersion$ + newlineIndent$ + "Please download a more recent version of Praat:" + newlineIndent$ + "https://www.fon.hum.uva.nl/praat/"
   
   ##Compare current to minimum
   if currMajor < minMajor
