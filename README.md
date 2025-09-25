@@ -10,7 +10,7 @@ https://github.com/djvill/hwttiwtot [^pronounce]
 >
 > &ndash; Socrates (potentially)
 
-This repo is an attempt to provide an answer&mdash;"here"&mdash;to the eternal question "Hey, where's that thing I wrote that one time?"
+This repo is an attempt to provide an answer&mdash;"here"&mdash;to the eternal question "**h**ey, **w**here's **t**hat **t**hing **I** **w**rote **t**hat **o**ne **t**ime?"
 
 I hope these assorted bits of code can be useful, at least to myself if nobody else.
 Please note that some files are stubs (i.e., not independently runnable).
