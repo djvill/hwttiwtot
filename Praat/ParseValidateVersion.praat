@@ -1,7 +1,7 @@
 ####
 #### Praat script ParseValidateVersion.praat
 #### Dan Villarreal (d.vill@pitt.edu)
-#### Version date: 25 Apr 2025
+#### Version date: 25 Sep 2025
 ####
 #### Contains two procedures that are useful for other scripts to ensure Praat
 #### version meets minimum requirements (e.g., array functions introduced in 
